@@ -5,6 +5,7 @@ from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 import os, csv
 from datetime import datetime
+from zoneinfo import ZoneInfo
 import pandas as pd
 from streamlit_autorefresh import st_autorefresh
 
@@ -22,6 +23,7 @@ URL = "https://www.logammulia.com/id/purchase/gold"
 HEADERS = {"User-Agent": "Mozilla/5.0"}
 GRAM_LIST = ["0.5 gr", "1 gr", "2 gr", "3 gr", "5 gr", "10 gr"]
 LOG_FILE = "stock_log.csv"
+TIMEZONE = ZoneInfo("Asia/Jakarta")  # Timezone Jakarta
 
 # =====================
 # TELEGRAM
@@ -29,7 +31,10 @@ LOG_FILE = "stock_log.csv"
 def send_telegram(msg):
     api = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
     payload = {"chat_id": CHAT_ID, "text": msg, "parse_mode": "HTML"}
-    requests.post(api, data=payload, timeout=10)
+    try:
+        requests.post(api, data=payload, timeout=10)
+    except Exception as e:
+        print("Error Telegram:", e)
 
 # =====================
 # CHECK STOCK
@@ -61,7 +66,7 @@ def log_stock(status):
             w.writerow(["timestamp", "gram", "status"])
         for g, a in status.items():
             w.writerow([
-                datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                datetime.now(TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
                 g,
                 "TERSEDIA" if a else "HABIS"
             ])
@@ -93,7 +98,7 @@ st_autorefresh(interval=refresh_min*60*1000, key="auto")
 favorite = st.multiselect("⭐ Gram favorit", GRAM_LIST, default=["1 gr", "5 gr"])
 
 # =====================
-# STATE
+# SESSION STATE
 # =====================
 if "last_status" not in st.session_state:
     st.session_state.last_status = {}
@@ -120,9 +125,9 @@ m3.metric("Habis", len(status) - available_count)
 st.subheader("📦 Status Stok")
 cols = st.columns(3)
 for i, (gram, available) in enumerate(status.items()):
-    with cols[i%3]:
+    with cols[i % 3]:
         # Header card
-        h1, h2 = st.columns([4,1])
+        h1, h2 = st.columns([4, 1])
         with h1:
             st.markdown(f"**{gram}**")
         with h2:
@@ -140,7 +145,7 @@ for i, (gram, available) in enumerate(status.items()):
             st.toast("🔔 Stok tersedia!", icon="🔊")
 
 st.session_state.last_status = status
-st.caption(f"🕒 Update: {datetime.now():%d %b %Y • %H:%M:%S}")
+st.caption(f"🕒 Update: {datetime.now(TIMEZONE):%d %b %Y • %H:%M:%S}")
 
 # =====================
 # LOG TABLE & GRAFIK
@@ -151,8 +156,9 @@ st.subheader("📈 Grafik Ketersediaan")
 if os.path.exists(LOG_FILE):
     df = pd.read_csv(LOG_FILE)
     df["timestamp"] = pd.to_datetime(df["timestamp"], errors="coerce")
-    chart = df.groupby("timestamp")["status"].apply(lambda x: (x=="TERSEDIA").sum()).reset_index()
-    st.line_chart(chart.rename(columns={"timestamp":"index", "status":"TERSEDIA"}).set_index("index"))
+    chart = df.groupby("timestamp")["status"].apply(lambda x: (x == "TERSEDIA").sum()).reset_index()
+    chart = chart.rename(columns={"timestamp": "index", "status": "TERSEDIA"}).set_index("index")
+    st.line_chart(chart)
 else:
     st.info("Belum ada data grafik.")
 
@@ -168,4 +174,3 @@ with st.expander("📜 Detail Log"):
 if st.button("🔔 Test Telegram"):
     send_telegram("✅ TEST BERHASIL\nBot Telegram aktif.")
     st.success("Pesan test terkirim")
-
