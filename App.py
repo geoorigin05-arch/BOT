@@ -82,17 +82,6 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =====================
-# FRAMER EMBED
-# =====================
-st.markdown("## 🔗 Tampilan Framer Preview")
-components.iframe(
-    "https://dedicated-transform-979896.framer.app/",
-    width=900,
-    height=600,
-    scrolling=True
-)
-
-# =====================
 # AUTO REFRESH
 # =====================
 refresh_min = st.slider("⏱️ Auto update (menit)", 1, 30, 5, key="refresh_slider")
@@ -179,3 +168,4 @@ with st.expander("📜 Detail Log"):
 if st.button("🔔 Test Telegram"):
     send_telegram("✅ TEST BERHASIL\nBot Telegram aktif.")
     st.success("Pesan test terkirim")
+
